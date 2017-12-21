@@ -86,5 +86,6 @@ typedef enum
 
 int msg_header_verify(msg_header_t *header);
 int msg_initialize_response(msg_header_t * header,int sessionId);
+int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size);
 
 #endif

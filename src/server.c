@@ -202,6 +202,8 @@ static void hs_process(int socket, hs_server_t *server)
             case InitializeResponse:
                 break;
             case AsyncInitialize:
+                msg_async_initialize_response(&msg_header);
+                server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
                 break;
             case AsyncInitializeResponse:
                 break;
@@ -210,7 +212,12 @@ static void hs_process(int socket, hs_server_t *server)
             case DataEnd:
                 break;
             case AsyncMaximumMessageSize:
+            {
+                msg_header_t *p = (msg_header_t*)malloc(MSG_HEADER_SIZE + 8);
+                msg_async_maximum_message_size_response(p, 1024*1024);
+                server->tcp_write(socket, p, MSG_HEADER_SIZE + 8, 0);
                 break;
+            }
             case AsyncMaximumMessageSizeResponse:
                 break;
             case Error:

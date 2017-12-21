@@ -32,8 +32,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/socket.h>
 #include "message.h"
 #include "error.h"
+
 
 int msg_header_verify(msg_header_t *header)
 {
@@ -55,4 +57,25 @@ int msg_initialize_response(msg_header_t *header, int sessionId)
     header->parameter.s.upper = 0;
     header->parameter.s.lower = sessionId;
     header->payload_length = 0;
+}
+
+int msg_async_initialize_response(msg_header_t *header)
+{
+    header->prologue = htons(MSG_HEADER_PROLOGUE);
+    header->type = AsyncInitializeResponse;
+    header->control_code = 0;
+    header->parameter.value = htonl(0x575A); // WZ
+    header->payload_length = 0;
+}
+
+int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size)
+{
+    uint64_t *payload = (uint64_t*)((uint8_t*)header + sizeof(msg_header_t));
+    
+    header->prologue = htons(MSG_HEADER_PROLOGUE);
+    header->type = AsyncMaximumMessageSizeResponse;
+    header->control_code = 0;
+    header->parameter.value = 0;
+    header->payload_length = htobe64(sizeof(uint64_t));
+    *payload = htobe64(size);
 }
