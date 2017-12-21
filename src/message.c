@@ -40,9 +40,19 @@ int msg_header_verify(msg_header_t *header)
     // Verify message prefix
     if (header->prologue != MSG_HEADER_PROLOGUE)
     {
-        error_printf("Received invalid message header (invalid prologue)\n");
+        error_printf("Received invalid message header (invalid prologue)0x%x\n", header->prologue);
         return 1;
     }
 
     return 0;
+}
+
+int msg_initialize_response(msg_header_t *header, int sessionId)
+{
+    header->prologue = htons(MSG_HEADER_PROLOGUE);
+    header->type = InitializeResponse;
+    header->control_code = 1 << 0; //Perfer Overlap
+    header->parameter.s.upper = 0;
+    header->parameter.s.lower = sessionId;
+    header->payload_length = 0;
 }

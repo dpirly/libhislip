@@ -37,14 +37,20 @@
 #include <string.h>
 
 #define MSG_HEADER_SIZE 16
-#define MSG_HEADER_PROLOGUE 0x4854 // "HS"
+#define MSG_HEADER_PROLOGUE 0x4853 // "HS"
 
 typedef struct __attribute__((__packed__))
 {
     uint16_t prologue;
     uint8_t type;
     uint8_t control_code;
-    uint32_t parameter;
+    union{
+        struct{
+            uint16_t upper;
+            uint16_t lower;
+        }s;
+        uint32_t value;
+    }parameter;
     uint64_t payload_length;
 } msg_header_t;
 
@@ -79,5 +85,6 @@ typedef enum
 } msg_type_t;
 
 int msg_header_verify(msg_header_t *header);
+int msg_initialize_response(msg_header_t * header,int sessionId);
 
 #endif

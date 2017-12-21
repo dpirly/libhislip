@@ -106,6 +106,10 @@ static void hs_process(int socket, hs_server_t *server)
         if (bytes_received < MSG_HEADER_SIZE)
             continue;
 
+        // convert to host order
+        msg_header.prologue       = ntohs(msg_header.prologue);
+        msg_header.payload_length = be64toh(msg_header.payload_length);
+        
         // Verify message header
         if (msg_header_verify(&msg_header))
         {
@@ -156,12 +160,17 @@ static void hs_process(int socket, hs_server_t *server)
                     uint16_t client_protocol_version = *(value+1);
 
                     // Check if HiSlip protocol version is supported
+
+                    /*
+                     * NI-MAX driver report version is 0xffff *
                     if (client_protocol_version != SERVER_PROTOCOL_VERSION)
                     {
                         error_printf("Unsupported protocol version\n");
                         server->tcp_close(socket);
                         return;
                     }
+                    */
+                    
                 }
 
                 // Create new connection session
@@ -186,7 +195,8 @@ static void hs_process(int socket, hs_server_t *server)
                 //  SessionID
                 //  Overlap-mode
                 //  Server protocol version
-
+                msg_initialize_response(&msg_header, i);
+                server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
                 break;
 
             case InitializeResponse:
