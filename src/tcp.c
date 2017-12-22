@@ -168,6 +168,7 @@ int tcp_read(int sd, void *buffer, int length, int timeout)
 
 int tcp_disconnect(int sd)
 {
+    shutdown(sd, SHUT_RDWR);
     return close(sd);
 }
 

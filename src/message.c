@@ -50,50 +50,66 @@ int msg_header_verify(msg_header_t *header)
     return 0;
 }
 
-int msg_initialize_response(msg_header_t *header, int sessionId, bool overlap, uint16_t version)
+static void msg_header_init(msg_header_t* header, uint8_t type)
 {
+    memset(header, 0, sizeof(msg_header_t));
     header->prologue = htons(MSG_HEADER_PROLOGUE);
-    header->type = InitializeResponse;
+    header->type = type;
+}
+
+int msg_initialize_response(msg_header_t* header, int sessionId, bool overlap, uint16_t version)
+{
+    msg_header_init(header, InitializeResponse);
+
     header->control_code = overlap & 0x01;          // Bit0: Perfer Overlap(0) or Perfer Synchronized
     header->parameter.s.upper = htons(version);     // Server Protocol version
     header->parameter.s.lower = htons(sessionId);   // SessionId
-    header->payload_length = 0;
 
-    return 0;
+    return sizeof(msg_header_t);
+}
+
+int msg_fatal_error(msg_header_t* header, uint8_t error, char* message)
+{
+    int len = 0;
+    msg_header_init(header, FatalError);
+
+    header->control_code = error;
+
+    if(message)
+    {
+        len = strlen(message);
+        memcpy(header, message, len);
+        header->payload_length = htobe64(len);
+    }
+    return sizeof(msg_header_t) + len;
 }
 
 int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID)
 {
-    header->prologue = htons(MSG_HEADER_PROLOGUE);
-    header->type = AsyncInitializeResponse;
-    header->control_code = 0;
-    header->parameter.value = htonl(vendorID);
-    header->payload_length = 0;
+    msg_header_init(header, AsyncInitializeResponse);
 
-    return 0;
+    header->parameter.value = htonl(vendorID);
+
+    return sizeof(msg_header_t);
 }
 
 int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size)
 {
     uint64_t *payload = (uint64_t*)((uint8_t*)header + sizeof(msg_header_t));
-    
-    header->prologue = htons(MSG_HEADER_PROLOGUE);
-    header->type = AsyncMaximumMessageSizeResponse;
-    header->control_code = 0;
-    header->parameter.value = 0;
+
+    msg_header_init(header, AsyncMaximumMessageSizeResponse);
+
     header->payload_length = htobe64(sizeof(uint64_t));
     *payload = htobe64(size);
 
-    return 0;
+    return sizeof(msg_header_t) + size;
 }
 
 int msg_async_lock_response(msg_header_t *header, uint8_t result)
 {
-    header->prologue = htons(MSG_HEADER_PROLOGUE);
-    header->type = AsyncLockResponse;
+    msg_header_init(header, AsyncLockResponse);
+
     header->control_code = result;
-    header->parameter.value = 0;
-    header->payload_length = 0;
-    
-    return 0;
+
+    return sizeof(msg_header_t);
 }

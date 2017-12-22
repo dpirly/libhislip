@@ -53,7 +53,7 @@
 typedef LIST_HEAD(subaddress_head_t, hs_subaddress_data_t) subaddress_head_t;
 subaddress_head_t *subaddress_head;
 
-static int server_subaddress_link(hs_server_t *server, char *subaddress, hs_subaddress_data_t *subaddress_data)
+static int server_subaddress_link(hs_server_t *server, char *subaddress, hs_subaddress_data_t **subaddress_data)
 {
     bool match_found = false;
     hs_subaddress_data_t *sd;
@@ -64,14 +64,14 @@ static int server_subaddress_link(hs_server_t *server, char *subaddress, hs_suba
         if (strcmp(sd->subaddress, subaddress) == 0)
         {
             match_found = true;
-            subaddress_data = sd;
-            printf("found subaddress\n");
+            *subaddress_data = sd;
+            printf("found subaddress, subaddress_data=%p\n", *subaddress_data);
             break;
         }
     }
 
     // Link connection session to subaddress
-    
+
     return match_found;
 }
 
@@ -85,6 +85,13 @@ static void hs_process(int socket, hs_server_t *server)
     // Enter message processing loop
     while (1)
     {
+        // Free the payload memory
+        if(payload)
+        {
+            free(payload);
+            payload = NULL;
+        }
+
         /* 1. Receive message (blocking, no timeout)
          * 1.1 Receive header
          * 1.2 Decode payload length
@@ -107,17 +114,21 @@ static void hs_process(int socket, hs_server_t *server)
         if (bytes_received < MSG_HEADER_SIZE)
             continue;
 
+
         // convert to host order
         msg_header.prologue       = ntohs(msg_header.prologue);
         msg_header.payload_length = be64toh(msg_header.payload_length);
-        
+
         // Verify message header
         if (msg_header_verify(&msg_header))
         {
             // Invalid header
             error_printf("Invalid header\n");
-            // Send FatalError message with error code 1 (Poorly formed message header)
 
+            // Send FatalError message with error code 1 (Poorly formed message header)
+            msg_fatal_error(&msg_header, PoorlyFormedMessageHeader, NULL);
+
+            server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
             continue; // Skip until valid header received
         }
 
@@ -152,6 +163,7 @@ static void hs_process(int socket, hs_server_t *server)
         switch (msg_header.type)
         {
             case Initialize:
+#if 0
                 {
                     // Decode parameter field:
                     //  Client protocol version (upper)
@@ -161,17 +173,20 @@ static void hs_process(int socket, hs_server_t *server)
                     uint16_t client_protocol_version = *(value+1);
 
                     // Check if HiSlip protocol version is supported
-
-                    /*
-                     * NI-MAX driver report version is 0xffff *
                     if (client_protocol_version != SERVER_PROTOCOL_VERSION)
                     {
                         error_printf("Unsupported protocol version\n");
                         server->tcp_close(socket);
                         return;
                     }
-                    */
-                    
+                }
+#endif
+                // Check if already have opened session
+                if (i > 0 && true == session[i].allocated)
+                {
+                    error_printf("The connection already have opened session(0x%x)\n",
+                        session[i].SessionID);
+                    session_free(i);
                 }
 
                 // Create new connection session
@@ -185,7 +200,7 @@ static void hs_process(int socket, hs_server_t *server)
 
                 // Link connection session with registered subaddress callbacks
                 subaddress = payload;
-                if (server_subaddress_link(server, subaddress, session[i].subaddress_data) == -1)
+                if (server_subaddress_link(server, subaddress, &session[i].subaddress_data) == -1)
                 {
                     error_printf("Unable to link subaddress\n");
                     // TODO: Respond FatalError
@@ -240,11 +255,34 @@ static void hs_process(int socket, hs_server_t *server)
                 break;
             case DataEnd:
                 {
-                    printf("payload:%s", (char*)payload);
+                    if (i < 0)
+                    {
+                        if(payload)
+                        {
+                            free(payload);
+                            payload = NULL;
+                        }
+                        error_printf("client must initialize the channels\n");
+                        server->tcp_close(socket);
+                        return;
+                    }
+
+                    if(session[i].subaddress_data &&
+                       session[i].subaddress_data->callbacks &&
+                       session[i].subaddress_data->callbacks->message_sync){
+                        session[i].subaddress_data->callbacks->message_sync(payload, msg_header.payload_length);
+                    }
                 }
                 break;
             case AsyncMaximumMessageSize:
                 {
+                    if (i < 0)
+                    {
+                        error_printf("client must initialize asynchronous channel\n");
+                        server->tcp_close(socket);
+                        return;
+                    }
+
                     msg_header_t *p = (msg_header_t*)malloc(MSG_HEADER_SIZE + 8);
                     msg_async_maximum_message_size_response(p, 1024*1024);
                     server->tcp_write(socket, p, MSG_HEADER_SIZE + 8, 0);
