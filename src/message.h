@@ -85,7 +85,7 @@ typedef enum
 } msg_type_t;
 
 
-typedef enum a
+typedef enum
 {
     F_UnidentifiedError,
     PoorlyFormedMessageHeader,
@@ -106,7 +106,7 @@ typedef enum
 int msg_header_verify(msg_header_t *header);
 int msg_initialize_response(msg_header_t *header, int sessionId, bool overlap, uint16_t version);
 int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID);
-
+int msg_async_lock_response(msg_header_t *header, uint8_t result);
 int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size);
 
 #endif

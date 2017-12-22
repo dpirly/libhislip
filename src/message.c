@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include "message.h"
 #include "error.h"
 
@@ -57,6 +58,8 @@ int msg_initialize_response(msg_header_t *header, int sessionId, bool overlap, u
     header->parameter.s.upper = htons(version);     // Server Protocol version
     header->parameter.s.lower = htons(sessionId);   // SessionId
     header->payload_length = 0;
+
+    return 0;
 }
 
 int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID)
@@ -66,6 +69,8 @@ int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID)
     header->control_code = 0;
     header->parameter.value = htonl(vendorID);
     header->payload_length = 0;
+
+    return 0;
 }
 
 int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size)
@@ -78,4 +83,17 @@ int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size)
     header->parameter.value = 0;
     header->payload_length = htobe64(sizeof(uint64_t));
     *payload = htobe64(size);
+
+    return 0;
+}
+
+int msg_async_lock_response(msg_header_t *header, uint8_t result)
+{
+    header->prologue = htons(MSG_HEADER_PROLOGUE);
+    header->type = AsyncLockResponse;
+    header->control_code = result;
+    header->parameter.value = 0;
+    header->payload_length = 0;
+    
+    return 0;
 }

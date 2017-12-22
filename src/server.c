@@ -71,14 +71,14 @@ static int server_subaddress_link(hs_server_t *server, char *subaddress, hs_suba
     }
 
     // Link connection session to subaddress
-
+    
     return match_found;
 }
 
 static void hs_process(int socket, hs_server_t *server)
 {
     msg_header_t msg_header;
-    int bytes_received, bytes_sent, i;
+    int bytes_received, bytes_sent, i = -1;
     char *subaddress;
     void *payload = NULL;
 
@@ -196,15 +196,42 @@ static void hs_process(int socket, hs_server_t *server)
                 //  SessionID
                 //  Overlap-mode
                 //  Server protocol version
-                msg_initialize_response(&msg_header, i, true, SERVER_PROTOCOL_VERSION);
+                msg_initialize_response(&msg_header, session[i].SessionID, true, SERVER_PROTOCOL_VERSION);
                 server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
                 break;
 
             case InitializeResponse:
                 break;
             case AsyncInitialize:
-                msg_async_initialize_response(&msg_header, SERVER_VENDOR_ID);
-                server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
+                {
+                    // Get SessionID from the initialize message
+                    uint16_t sessionID = ntohs(msg_header.parameter.s.lower);
+                    if (i > 0)
+                    {
+                        error_printf("client must send AsyncInitialize on asynchronous channel\n");
+                        server->tcp_close(socket);
+                        return;
+                    }
+
+                    // find the session by sessionID
+                    i = session_find_by_id(sessionID);
+                    if(i < 0)
+                    {
+                        error_printf("can not find the sessionID(0x%x)\n", sessionID);
+                        server->tcp_close(socket);
+                        return;
+                    }
+
+                    // Response the client
+                    msg_async_initialize_response(&msg_header, SERVER_VENDOR_ID);
+                    bytes_sent = server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
+                    if(bytes_sent != MSG_HEADER_SIZE)
+                    {
+                        error_printf("tcp only send %d bytes, except %d\n", bytes_sent, MSG_HEADER_SIZE);
+                        server->tcp_close(socket);
+                        return;
+                    }
+                }
                 break;
                 
             case AsyncInitializeResponse:
@@ -212,12 +239,16 @@ static void hs_process(int socket, hs_server_t *server)
             case Data:
                 break;
             case DataEnd:
+                {
+                    printf("payload:%s", (char*)payload);
+                }
                 break;
             case AsyncMaximumMessageSize:
                 {
                     msg_header_t *p = (msg_header_t*)malloc(MSG_HEADER_SIZE + 8);
                     msg_async_maximum_message_size_response(p, 1024*1024);
                     server->tcp_write(socket, p, MSG_HEADER_SIZE + 8, 0);
+                    free(p);
                 }
                 break;
             case AsyncMaximumMessageSizeResponse:
@@ -225,6 +256,15 @@ static void hs_process(int socket, hs_server_t *server)
             case Error:
                 break;
             case FatalError:
+                break;
+
+            case AsyncLock:
+                {
+                    uint8_t request  = msg_header.control_code;
+                    uint32_t timeout = ntohl(msg_header.parameter.value);
+                    msg_async_lock_response(&msg_header, 1); // 1 success
+                    server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
+                }
                 break;
             default:
                 break;

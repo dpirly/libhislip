@@ -34,7 +34,7 @@
 #include "session.h"
 #include "error.h"
 
-static uint16_t session_id = 0;
+static uint16_t session_id = 100;
 static pthread_mutex_t session_mutex = PTHREAD_MUTEX_INITIALIZER;
 session_t session[MAX_SESSIONS] = {};
 
@@ -53,6 +53,9 @@ int session_new(void)
             // Claim session
             session[i].allocated = true;
             session[i].SessionID = session_id++;
+            session[i].socket_async = -1;
+            session[i].socket_sync  = -1;
+            session[i].data = NULL;
             session_available = true;
             break;
         }
@@ -97,4 +100,26 @@ int session_free(int i)
 error:
     pthread_mutex_unlock(&session_mutex);
     return -1;
+}
+
+
+int session_find_by_id(int sessionID)
+{
+    int index = -1;
+    int i;
+
+    pthread_mutex_lock(&session_mutex);
+
+    // Find all session entry (i)
+    for (i=0; i<MAX_SESSIONS; i++)
+    {
+        if (session[i].allocated == true)
+        {
+            if(session[i].SessionID == sessionID)
+                index = i;
+        }
+    }
+
+    pthread_mutex_unlock(&session_mutex);
+    return index;
 }

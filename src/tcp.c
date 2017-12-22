@@ -193,6 +193,7 @@ int tcp_server_start(int port, int n, void (*connection_callback)(int sd, void *
 {
     int server_socket;
     int status;
+    int reuse = 1;
     struct sockaddr_in server_address;
     struct sockaddr_in client_address;
     connection_data_t connection_data;
@@ -209,6 +210,14 @@ int tcp_server_start(int port, int n, void (*connection_callback)(int sd, void *
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
     server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    // Reuse socket port
+    if ((status = setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse))) < 0)
+    {
+        error_printf("bind() call failed (%s)\n", strerror(errno));
+        close(server_socket);
+        exit(EXIT_FAILURE);    
+    }
 
     // Assign server address to socket
     if ((status = bind(server_socket, (struct sockaddr *) &server_address, sizeof(server_address))) < 0)

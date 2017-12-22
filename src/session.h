@@ -57,5 +57,6 @@ extern session_t session[MAX_SESSIONS];
 
 int session_new(void);
 int session_free(int i);
+int session_find_by_id(int sessionID);
 
 #endif

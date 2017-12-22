@@ -4,6 +4,7 @@
 
 int hislip0_message_sync(void *buffer, int length)
 {
+    printf("hislip0_message_sync(%s, %d)", (char*)buffer, length);
     return 0;
     // How to send response? Maybe add some message id?
     // send_response(id, void *buffer, int length);
@@ -11,6 +12,7 @@ int hislip0_message_sync(void *buffer, int length)
 
 int hislip0_message_async(void *buffer, int length)
 {
+    printf("hislip0_message_async(%s, %d)", (char*)buffer, length);
     return 0;
 }
 
