@@ -49,22 +49,22 @@ int msg_header_verify(msg_header_t *header)
     return 0;
 }
 
-int msg_initialize_response(msg_header_t *header, int sessionId)
+int msg_initialize_response(msg_header_t *header, int sessionId, bool overlap, uint16_t version)
 {
     header->prologue = htons(MSG_HEADER_PROLOGUE);
     header->type = InitializeResponse;
-    header->control_code = 1 << 0; //Perfer Overlap
-    header->parameter.s.upper = 0;
-    header->parameter.s.lower = sessionId;
+    header->control_code = overlap & 0x01;          // Bit0: Perfer Overlap(0) or Perfer Synchronized
+    header->parameter.s.upper = htons(version);     // Server Protocol version
+    header->parameter.s.lower = htons(sessionId);   // SessionId
     header->payload_length = 0;
 }
 
-int msg_async_initialize_response(msg_header_t *header)
+int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID)
 {
     header->prologue = htons(MSG_HEADER_PROLOGUE);
     header->type = AsyncInitializeResponse;
     header->control_code = 0;
-    header->parameter.value = htonl(0x575A); // WZ
+    header->parameter.value = htonl(vendorID);
     header->payload_length = 0;
 }
 

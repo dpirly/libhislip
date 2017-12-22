@@ -47,7 +47,8 @@
 #include "error.h"
 #include "session.h"
 
-#define SERVER_PROTOCOL_VERSION 0x100 // Major = 1, Minor = 0
+#define SERVER_PROTOCOL_VERSION 0x100  // Major = 1, Minor = 0
+#define SERVER_VENDOR_ID        0x575A // Welzek(WZ)
 
 typedef LIST_HEAD(subaddress_head_t, hs_subaddress_data_t) subaddress_head_t;
 subaddress_head_t *subaddress_head;
@@ -195,16 +196,17 @@ static void hs_process(int socket, hs_server_t *server)
                 //  SessionID
                 //  Overlap-mode
                 //  Server protocol version
-                msg_initialize_response(&msg_header, i);
+                msg_initialize_response(&msg_header, i, true, SERVER_PROTOCOL_VERSION);
                 server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
                 break;
 
             case InitializeResponse:
                 break;
             case AsyncInitialize:
-                msg_async_initialize_response(&msg_header);
+                msg_async_initialize_response(&msg_header, SERVER_VENDOR_ID);
                 server->tcp_write(socket, &msg_header, MSG_HEADER_SIZE, 0);
                 break;
+                
             case AsyncInitializeResponse:
                 break;
             case Data:
@@ -212,12 +214,12 @@ static void hs_process(int socket, hs_server_t *server)
             case DataEnd:
                 break;
             case AsyncMaximumMessageSize:
-            {
-                msg_header_t *p = (msg_header_t*)malloc(MSG_HEADER_SIZE + 8);
-                msg_async_maximum_message_size_response(p, 1024*1024);
-                server->tcp_write(socket, p, MSG_HEADER_SIZE + 8, 0);
+                {
+                    msg_header_t *p = (msg_header_t*)malloc(MSG_HEADER_SIZE + 8);
+                    msg_async_maximum_message_size_response(p, 1024*1024);
+                    server->tcp_write(socket, p, MSG_HEADER_SIZE + 8, 0);
+                }
                 break;
-            }
             case AsyncMaximumMessageSizeResponse:
                 break;
             case Error:
@@ -269,7 +271,7 @@ int hs_server_init(hs_server_t *server, hs_server_config_t *config)
 
     // Configure TCP callbacks
     server->tcp_start = tcp_server_start;
-    server->tcp_read = tcp_read;
+    server->tcp_read  = tcp_read;
     server->tcp_write = tcp_write;
     server->tcp_close = tcp_disconnect;
 

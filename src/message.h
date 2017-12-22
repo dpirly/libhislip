@@ -84,8 +84,29 @@ typedef enum
     AsyncLockInfoResponse
 } msg_type_t;
 
+
+typedef enum a
+{
+    F_UnidentifiedError,
+    PoorlyFormedMessageHeader,
+    AttemptToUseConnectionWithoutBothChannelsEstablished,
+    InvalidInitializationSequence,
+    ServerRefusedConnectionDueToMaximumNumberOfClinetsExceeded
+}fatal_error_code_t;
+
+typedef enum
+{
+    UnidentifiedError,
+    UnrecognizedMessageType,
+    UnrecognizedControlCode,
+    UnreconnizedVendorDefinedMessage,
+    MessageTooLarge
+}error_code_t;
+
 int msg_header_verify(msg_header_t *header);
-int msg_initialize_response(msg_header_t * header,int sessionId);
+int msg_initialize_response(msg_header_t *header, int sessionId, bool overlap, uint16_t version);
+int msg_async_initialize_response(msg_header_t *header, uint32_t vendorID);
+
 int msg_async_maximum_message_size_response(msg_header_t *header, uint64_t size);
 
 #endif
